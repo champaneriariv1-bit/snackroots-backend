@@ -1,0 +1,63 @@
+SNACKROOTS: CONNECT NETLIFY TO SERVER BACKEND
+
+Goal:
+Netlify hosts the public website.
+Render/Railway/Fly hosts server.js.
+The Netlify site calls that backend for orders, creator dashboard, CSV export, and stats.
+
+1. Host the backend
+- Upload this project to Render, Railway, or another Node host.
+- Start command:
+  npm start
+- The backend must include:
+  server.js
+  package.json
+  package-lock.json
+  .env values
+
+2. Backend environment variables
+Set these in the backend host dashboard:
+
+PORT=3000
+ADMIN_KEYS=your_ariv_key,your_ayaan_key,your_vedanta_key
+ALLOWED_ORIGINS=https://YOUR-NETLIFY-SITE.netlify.app
+
+Optional live payment verification:
+RAZORPAY_VERIFY_PAYMENTS=true
+RAZORPAY_KEY_ID=your_key_id
+RAZORPAY_KEY_SECRET=your_key_secret
+
+Optional WWF donation automation:
+WWF_DONATIONS_ENABLED=false
+WWF_RAPIDAPI_KEY=your_rotated_key
+WWF_RAPIDAPI_HOST=real_host_from_api_docs
+WWF_DONATION_ENDPOINT=real_endpoint_from_api_docs
+
+3. Test backend
+Open:
+https://YOUR-BACKEND-URL/api/health
+
+It should return JSON like:
+{"ok":true,"service":"SnackRoots API",...}
+
+4. Connect Netlify frontend
+In SnackRoots_Ultimate.html and index.html, set this before upload:
+
+<script>
+  window.SNACKROOTS_BACKEND_URL = "https://YOUR-BACKEND-URL";
+</script>
+
+The current site also supports a no-edit browser test:
+Open the Netlify site, press F12, Console, run:
+
+localStorage.setItem("snackroots_backend_url", "https://YOUR-BACKEND-URL");
+location.reload();
+
+5. Dashboard
+Open Creator Login on the Netlify site and enter one ADMIN_KEYS value.
+If connected correctly, the dashboard will read orders from the hosted backend.
+
+Important:
+Netlify alone cannot run server.js. You need both:
+- Netlify URL for website
+- Backend URL for server.js
