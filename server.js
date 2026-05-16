@@ -179,7 +179,7 @@ function securityHeaders(req, res, next) {
     "Content-Security-Policy",
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com",
+      "script-src 'self' 'unsafe-inline' https://checkout.razorpay.com https://unpkg.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
       "img-src 'self' data: https:",
@@ -648,6 +648,13 @@ app.get("/api/setup-status", rateLimit("admin-setup", 120, 15 * 60 * 1000), requ
   res.json(setupStatus());
 });
 
+app.get("/api/checkout-config", rateLimit("checkout-config", 120, 15 * 60 * 1000), (req, res) => {
+  res.json({
+    razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
+    razorpayReady: Boolean(process.env.RAZORPAY_KEY_ID),
+  });
+});
+
 app.get("/api/orders/export.csv", rateLimit("admin-export", 20, 15 * 60 * 1000), requireAdmin, (req, res) => {
   const csv = ordersToCsv(readJson(ORDERS_FILE));
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
@@ -824,3 +831,4 @@ app.listen(PORT, () => {
   ensureStore();
   console.log(`SnackRoots server running at http://localhost:${PORT}`);
 });
+
