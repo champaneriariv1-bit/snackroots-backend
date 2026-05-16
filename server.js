@@ -373,6 +373,73 @@ async function verifyRazorpayPayment(paymentId, expectedAmountRupees) {
   return { verified: true, providerPayment: payment };
 }
 
+async function createRazorpayOrder(amountRupees, receipt) {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return {
+      ok: false,
+      status: 503,
+      error: "Razorpay keys are not configured on the server.",
+    };
+  }
+
+  const amountPaise = rupees(amountRupees) * 100;
+  if (!amountPaise || amountPaise < 100) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Order amount must be at least ₹1.",
+    };
+  }
+
+  const auth = Buffer.from(
+    `${process.env.RAZORPAY_KEY_ID}:${process.env.RAZORPAY_KEY_SECRET}`
+  ).toString("base64");
+
+  const response = await fetch("https://api.razorpay.com/v1/orders", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      amount: amountPaise,
+      currency: "INR",
+      receipt: cleanText(receipt, 40) || makeId("receipt"),
+      payment_capture: 1,
+    }),
+  });
+
+  const text = await response.text();
+  let order = {};
+  try {
+    order = text ? JSON.parse(text) : {};
+  } catch {
+    order = {};
+  }
+  if (!response.ok) {
+    const providerError = order?.error || {};
+    return {
+      ok: false,
+      status: response.status || 502,
+      error:
+        providerError.description ||
+        providerError.reason ||
+        `Razorpay could not create an order. HTTP ${response.status}.`,
+      providerResponse: {
+        statusCode: response.status,
+        code: providerError.code || "",
+        description: providerError.description || "",
+        reason: providerError.reason || "",
+        source: providerError.source || "",
+        step: providerError.step || "",
+        raw: providerError.description || providerError.reason ? "" : text.slice(0, 240),
+      },
+    };
+  }
+
+  return { ok: true, order };
+}
+
 function setupStatus() {
   return {
     storage: {
@@ -652,6 +719,23 @@ app.get("/api/checkout-config", rateLimit("checkout-config", 120, 15 * 60 * 1000
   res.json({
     razorpayKeyId: process.env.RAZORPAY_KEY_ID || "",
     razorpayReady: Boolean(process.env.RAZORPAY_KEY_ID),
+  });
+});
+
+app.post("/api/razorpay/order", rateLimit("razorpay-order", 20, 15 * 60 * 1000), async (req, res) => {
+  const result = await createRazorpayOrder(req.body?.amount, req.body?.receipt);
+  if (!result.ok) {
+    res.status(result.status || 502).json({
+      error: result.error,
+      providerResponse: result.providerResponse,
+    });
+    return;
+  }
+  res.json({
+    orderId: result.order.id,
+    amount: result.order.amount,
+    currency: result.order.currency,
+    receipt: result.order.receipt,
   });
 });
 
