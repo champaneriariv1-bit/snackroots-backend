@@ -831,4 +831,3 @@ app.listen(PORT, () => {
   ensureStore();
   console.log(`SnackRoots server running at http://localhost:${PORT}`);
 });
-
